@@ -14,6 +14,7 @@ func TestCheck(t *testing.T) {
 		CurrentChangelogURL: "http://www.hashicorp.com",
 		ProjectWebsite:      "http://www.hashicorp.com",
 		Outdated:            false,
+		Alerts:              []*CheckAlert{},
 	}
 
 	actual, err := Check(&CheckParams{

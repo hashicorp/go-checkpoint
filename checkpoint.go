@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"runtime"
 )
 
 // CheckParams are the parameters for configuring a check request.
@@ -18,7 +19,8 @@ type CheckParams struct {
 	Version string
 
 	// Arch and OS are used to filter alerts potentially only to things
-	// affecting a specific os/arch combination.
+	// affecting a specific os/arch combination. If these aren't specified,
+	// they'll be automatically filled in.
 	Arch string
 	OS   string
 
@@ -57,6 +59,13 @@ type CheckAlert struct {
 // Check checks for alerts and new version information.
 func Check(p *CheckParams) (*CheckResponse, error) {
 	var u url.URL
+
+	if p.Arch == "" {
+		p.Arch = runtime.GOARCH
+	}
+	if p.OS == "" {
+		p.OS = runtime.GOOS
+	}
 
 	v := u.Query()
 	v.Set("version", p.Version)
