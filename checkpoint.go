@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	mrand "math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -111,8 +112,8 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	v.Set("os", p.OS)
 	v.Set("signature", signature)
 
-	u.Scheme = "http"
-	u.Host = "api.checkpoint.hashicorp.com"
+	u.Scheme = "https"
+	u.Host = "checkpoint-api.hashicorp.com"
 	u.Path = fmt.Sprintf("/v1/check/%s", p.Product)
 	u.RawQuery = v.Encode()
 
@@ -145,6 +146,33 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	}
 
 	return checkResult(r)
+}
+
+// CheckInterval is used to check for a response on a given interval duration.
+// The interval is not exact, and checks are randomized to prevent a thundering
+// herd. However, it is expected that on average one check is performed per
+// interval. The returned channel may be closed to stop background checks.
+func CheckInterval(p *CheckParams, interval time.Duration, cb func(*CheckResponse, error)) chan struct{} {
+	doneCh := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-time.After(randomStagger(interval)):
+				resp, err := Check(p)
+				cb(resp, err)
+			case <-doneCh:
+				return
+			}
+		}
+	}()
+	return doneCh
+}
+
+// randomStagger returns an interval that is between 3/4 and 5/4 of
+// the given interval. The expected value is the interval.
+func randomStagger(interval time.Duration) time.Duration {
+	stagger := time.Duration(mrand.Int63()) % (interval / 2)
+	return 3*(interval/4) + stagger
 }
 
 func checkCache(path string, d time.Duration) (io.ReadCloser, error) {
