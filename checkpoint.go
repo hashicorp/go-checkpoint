@@ -246,7 +246,7 @@ func checkSignature(path string) (string, error) {
 		"%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 
 	// Write the signature
-	if err := ioutil.WriteFile(path, []byte(signature+"\n"+userMessage), 0644); err != nil {
+	if err := ioutil.WriteFile(path, []byte(signature+"\n\n"+userMessage+"\n"), 0644); err != nil {
 		return "", err
 	}
 
@@ -259,5 +259,6 @@ This signature is a randomly generated UUID used to de-duplicate
 alerts and version information. This signature is random, it is
 not based on any personally identifiable information. To create
 a new signature, you can simply delete this file at any time.
-Use of the signature can be disabled via configuration.
+See the documentation for the software using Checkpoint for more
+information on how to disable it.
 `
