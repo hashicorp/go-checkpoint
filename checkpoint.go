@@ -219,7 +219,11 @@ func checkSignature(path string) (string, error) {
 			return "", err
 		}
 
-		return strings.TrimSpace(string(sigBytes)), nil
+		// Split the file into lines
+		lines := strings.SplitN(string(sigBytes), "\n", 2)
+		if len(lines) > 0 {
+			return strings.TrimSpace(lines[0]), nil
+		}
 	}
 
 	// If this isn't a non-exist error, then return that.
@@ -242,9 +246,18 @@ func checkSignature(path string) (string, error) {
 		"%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 
 	// Write the signature
-	if err := ioutil.WriteFile(path, []byte(signature+"\n"), 0644); err != nil {
+	if err := ioutil.WriteFile(path, []byte(signature+"\n"+userMessage), 0644); err != nil {
 		return "", err
 	}
 
 	return signature, nil
 }
+
+// userMessage is suffixed to the signature file to provide feedback.
+var userMessage = `
+This signature is a randomly generated UUID used to de-duplicate
+alerts and version information. This signature is random, it is
+not based on any personally identifiable information. To create
+a new signature, you can simply delete this file at any time.
+Use of the signature can be disabled via configuration.
+`
