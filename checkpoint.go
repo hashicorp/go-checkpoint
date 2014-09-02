@@ -80,39 +80,10 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	// If we're given a SignatureFile, then attempt to read that.
 	signature := p.Signature
 	if p.Signature == "" && p.SignatureFile != "" {
-		if _, err := os.Stat(p.SignatureFile); err != nil {
-			// If this isn't a non-exist error, then return that.
-			if !os.IsNotExist(err) {
-				return nil, err
-			}
-
-			// The file doesn't exist, so create a signature.
-			var b [16]byte
-			n := 0
-			for n < 16 {
-				n2, err := rand.Read(b[n:])
-				if err != nil {
-					return nil, err
-				}
-
-				n += n2
-			}
-			signature = fmt.Sprintf(
-				"%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-
-			// Write the signature
-			err := ioutil.WriteFile(p.SignatureFile, []byte(signature+"\n"), 0644)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			// The file exists, read it out
-			sigBytes, err := ioutil.ReadFile(p.SignatureFile)
-			if err != nil {
-				return nil, err
-			}
-
-			signature = strings.TrimSpace(string(sigBytes))
+		var err error
+		signature, err = checkSignature(p.SignatureFile)
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -148,4 +119,43 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	}
 
 	return &result, nil
+}
+
+func checkSignature(path string) (string, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		// The file exists, read it out
+		sigBytes, err := ioutil.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+
+		return strings.TrimSpace(string(sigBytes)), nil
+	}
+
+	// If this isn't a non-exist error, then return that.
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	// The file doesn't exist, so create a signature.
+	var b [16]byte
+	n := 0
+	for n < 16 {
+		n2, err := rand.Read(b[n:])
+		if err != nil {
+			return "", err
+		}
+
+		n += n2
+	}
+	signature := fmt.Sprintf(
+		"%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
+	// Write the signature
+	if err := ioutil.WriteFile(path, []byte(signature+"\n"), 0644); err != nil {
+		return "", err
+	}
+
+	return signature, nil
 }
