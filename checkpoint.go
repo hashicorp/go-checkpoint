@@ -3,11 +3,15 @@
 package checkpoint
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
+	"strings"
 )
 
 // CheckParams are the parameters for configuring a check request.
@@ -29,7 +33,13 @@ type CheckParams struct {
 	// If the signature is changed, repeat alerts may be sent down. The
 	// signature should NOT be anything identifiable to a user (such as
 	// a MAC address). It should be random.
-	Signature string
+	//
+	// If SignatureFile is given, then the signature will be read from this
+	// file. If the file doesn't exist, then a random signature will
+	// automatically be generated and stored here. SignatureFile will be
+	// ignored if Signature is given.
+	Signature     string
+	SignatureFile string
 }
 
 // CheckResponse is the response for a check request.
@@ -67,11 +77,50 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 		p.OS = runtime.GOOS
 	}
 
+	// If we're given a SignatureFile, then attempt to read that.
+	signature := p.Signature
+	if p.Signature == "" && p.SignatureFile != "" {
+		if _, err := os.Stat(p.SignatureFile); err != nil {
+			// If this isn't a non-exist error, then return that.
+			if !os.IsNotExist(err) {
+				return nil, err
+			}
+
+			// The file doesn't exist, so create a signature.
+			var b [16]byte
+			n := 0
+			for n < 16 {
+				n2, err := rand.Read(b[n:])
+				if err != nil {
+					return nil, err
+				}
+
+				n += n2
+			}
+			signature = fmt.Sprintf(
+				"%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
+			// Write the signature
+			err := ioutil.WriteFile(p.SignatureFile, []byte(signature+"\n"), 0644)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// The file exists, read it out
+			sigBytes, err := ioutil.ReadFile(p.SignatureFile)
+			if err != nil {
+				return nil, err
+			}
+
+			signature = strings.TrimSpace(string(sigBytes))
+		}
+	}
+
 	v := u.Query()
 	v.Set("version", p.Version)
 	v.Set("arch", p.Arch)
 	v.Set("os", p.OS)
-	v.Set("signature", p.Signature)
+	v.Set("signature", signature)
 
 	u.Scheme = "http"
 	u.Host = "api.checkpoint.hashicorp.com"
