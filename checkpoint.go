@@ -6,12 +6,14 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 )
 
 // CheckParams are the parameters for configuring a check request.
@@ -40,6 +42,14 @@ type CheckParams struct {
 	// ignored if Signature is given.
 	Signature     string
 	SignatureFile string
+
+	// CacheFile, if specified, will cache the result of a check. The
+	// duration of the cache is specified by CacheDuration, and defaults
+	// to 48 hours if not specified. If the CacheFile is newer than the
+	// CacheDuration, than the Check will short-circuit and use those
+	// results.
+	CacheFile     string
+	CacheDuration time.Duration
 }
 
 // CheckResponse is the response for a check request.
@@ -68,6 +78,14 @@ type CheckAlert struct {
 
 // Check checks for alerts and new version information.
 func Check(p *CheckParams) (*CheckResponse, error) {
+	// If we have a cached result, then use that
+	if r, err := checkCache(p.CacheFile, p.CacheDuration); err != nil {
+		return nil, err
+	} else if r != nil {
+		defer r.Close()
+		return checkResult(r)
+	}
+
 	var u url.URL
 
 	if p.Arch == "" {
@@ -113,8 +131,50 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 		return nil, fmt.Errorf("Unknown status: %d", resp.StatusCode)
 	}
 
+	var r io.Reader = resp.Body
+	if p.CacheFile != "" {
+		// We have to cache the result, so write the response to the
+		// file as we read it.
+		f, err := os.Create(p.CacheFile)
+		if err != nil {
+			return nil, err
+		}
+
+		defer f.Close()
+		r = io.TeeReader(r, f)
+	}
+
+	return checkResult(r)
+}
+
+func checkCache(path string, d time.Duration) (io.ReadCloser, error) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist, not a problem
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	if d == 0 {
+		d = 48 * time.Hour
+	}
+
+	if fi.ModTime().Add(d).Before(time.Now()) {
+		// Cache is busted, delete the old file and re-request. We ignore
+		// errors here because re-creating the file is fine too.
+		os.Remove(path)
+		return nil, nil
+	}
+
+	return os.Open(path)
+}
+
+func checkResult(r io.Reader) (*CheckResponse, error) {
 	var result CheckResponse
-	dec := json.NewDecoder(resp.Body)
+	dec := json.NewDecoder(r)
 	if err := dec.Decode(&result); err != nil {
 		return nil, err
 	}
