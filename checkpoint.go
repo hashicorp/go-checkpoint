@@ -5,6 +5,7 @@ package checkpoint
 import (
 	"crypto/rand"
 	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,10 +14,13 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"time"
 )
+
+var magicBytes [4]byte = [4]byte{0x35, 0x77, 0x69, 0xFB}
 
 // CheckParams are the parameters for configuring a check request.
 type CheckParams struct {
@@ -84,7 +88,7 @@ type CheckAlert struct {
 // Check checks for alerts and new version information.
 func Check(p *CheckParams) (*CheckResponse, error) {
 	// If we have a cached result, then use that
-	if r, err := checkCache(p.CacheFile, p.CacheDuration); err != nil {
+	if r, err := checkCache(p.Version, p.CacheFile, p.CacheDuration); err != nil {
 		return nil, err
 	} else if r != nil {
 		defer r.Close()
@@ -150,6 +154,13 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 			return nil, err
 		}
 
+		// Write the cache header
+		if err := writeCacheHeader(f, p.Version); err != nil {
+			f.Close()
+			os.Remove(p.CacheFile)
+			return nil, err
+		}
+
 		defer f.Close()
 		r = io.TeeReader(r, f)
 	}
@@ -184,7 +195,7 @@ func randomStagger(interval time.Duration) time.Duration {
 	return 3*(interval/4) + stagger
 }
 
-func checkCache(path string, d time.Duration) (io.ReadCloser, error) {
+func checkCache(current string, path string, d time.Duration) (io.ReadCloser, error) {
 	fi, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -206,7 +217,42 @@ func checkCache(path string, d time.Duration) (io.ReadCloser, error) {
 		return nil, nil
 	}
 
-	return os.Open(path)
+	// File looks good so far, open it up so we can inspect the contents.
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check the signature of the file
+	var sig [4]byte
+	if err := binary.Read(f, binary.LittleEndian, sig[:]); err != nil {
+		f.Close()
+		return nil, err
+	}
+	if !reflect.DeepEqual(sig, magicBytes) {
+		// Signatures don't match. Reset.
+		f.Close()
+		return nil, nil
+	}
+
+	// Check the version. If it changed, then rewrite
+	var length uint32
+	if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
+		f.Close()
+		return nil, err
+	}
+	data := make([]byte, length)
+	if _, err := io.ReadFull(f, data); err != nil {
+		f.Close()
+		return nil, err
+	}
+	if string(data) != current {
+		// Version changed, reset
+		f.Close()
+		return nil, nil
+	}
+
+	return f, nil
 }
 
 func checkResult(r io.Reader) (*CheckResponse, error) {
@@ -265,6 +311,22 @@ func checkSignature(path string) (string, error) {
 	}
 
 	return signature, nil
+}
+
+func writeCacheHeader(f io.Writer, v string) error {
+	// Write our signature first
+	if err := binary.Write(f, binary.LittleEndian, magicBytes); err != nil {
+		return err
+	}
+
+	// Write out our current version length
+	var length uint32 = uint32(len(v))
+	if err := binary.Write(f, binary.LittleEndian, length); err != nil {
+		return err
+	}
+
+	_, err := f.Write([]byte(v))
+	return err
 }
 
 // userMessage is suffixed to the signature file to provide feedback.
