@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -49,6 +50,9 @@ type CheckParams struct {
 	// to 48 hours if not specified. If the CacheFile is newer than the
 	// CacheDuration, than the Check will short-circuit and use those
 	// results.
+	//
+	// If the CacheFile directory doesn't exist, it will be created with
+	// permissions 0755.
 	CacheFile     string
 	CacheDuration time.Duration
 }
@@ -134,6 +138,11 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 
 	var r io.Reader = resp.Body
 	if p.CacheFile != "" {
+		// Make sure the directory holding our cache exists.
+		if err := os.MkdirAll(filepath.Dir(p.CacheFile), 0755); err != nil {
+			return nil, err
+		}
+
 		// We have to cache the result, so write the response to the
 		// file as we read it.
 		f, err := os.Create(p.CacheFile)
