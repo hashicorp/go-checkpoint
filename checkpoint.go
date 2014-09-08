@@ -254,6 +254,11 @@ func checkSignature(path string) (string, error) {
 	signature := fmt.Sprintf(
 		"%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 
+	// Make sure the directory holding our signature exists.
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return "", err
+	}
+
 	// Write the signature
 	if err := ioutil.WriteFile(path, []byte(signature+"\n\n"+userMessage+"\n"), 0644); err != nil {
 		return "", err
