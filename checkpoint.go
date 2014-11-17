@@ -178,6 +178,11 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 // interval. The returned channel may be closed to stop background checks.
 func CheckInterval(p *CheckParams, interval time.Duration, cb func(*CheckResponse, error)) chan struct{} {
 	doneCh := make(chan struct{})
+
+	if disabled := os.Getenv("CHECKPOINT_DISABLE"); disabled != "" {
+		return doneCh
+	}
+
 	go func() {
 		for {
 			select {
@@ -189,6 +194,7 @@ func CheckInterval(p *CheckParams, interval time.Duration, cb func(*CheckRespons
 			}
 		}
 	}()
+
 	return doneCh
 }
 
