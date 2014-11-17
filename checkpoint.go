@@ -4,8 +4,8 @@ package checkpoint
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -87,6 +87,10 @@ type CheckAlert struct {
 
 // Check checks for alerts and new version information.
 func Check(p *CheckParams) (*CheckResponse, error) {
+	if disabled := os.Getenv("CHECKPOINT_DISABLE"); disabled != "" {
+		return &CheckResponse{}, nil
+	}
+
 	// If we have a cached result, then use that
 	if r, err := checkCache(p.Version, p.CacheFile, p.CacheDuration); err != nil {
 		return nil, err
