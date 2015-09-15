@@ -59,6 +59,12 @@ type CheckParams struct {
 	// permissions 0755.
 	CacheFile     string
 	CacheDuration time.Duration
+
+	// Force, if true, will force the check even if CHECKPOINT_DISABLE
+	// is set. Within HashiCorp products, this is ONLY USED when the user
+	// specifically requests it. This is never automatically done without
+	// the user's consent.
+	Force bool
 }
 
 // CheckResponse is the response for a check request.
@@ -87,7 +93,7 @@ type CheckAlert struct {
 
 // Check checks for alerts and new version information.
 func Check(p *CheckParams) (*CheckResponse, error) {
-	if disabled := os.Getenv("CHECKPOINT_DISABLE"); disabled != "" {
+	if disabled := os.Getenv("CHECKPOINT_DISABLE"); disabled != "" && !p.Force {
 		return &CheckResponse{}, nil
 	}
 
