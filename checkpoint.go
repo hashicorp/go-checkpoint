@@ -142,7 +142,8 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("User-Agent", "HashiCorp/go-checkpoint")
 
-	resp, err := http.DefaultClient.Do(req)
+	client := http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
