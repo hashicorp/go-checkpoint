@@ -18,6 +18,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/cleanhttp"
 )
 
 var magicBytes [4]byte = [4]byte{0x35, 0x77, 0x69, 0xFB}
@@ -142,7 +144,7 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("User-Agent", "HashiCorp/go-checkpoint")
 
-	client := http.Client{}
+	client := cleanhttp.DefaultClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
