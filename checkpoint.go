@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/cleanhttp"
+	"github.com/hashicorp/go-cleanhttp"
 )
 
 var magicBytes [4]byte = [4]byte{0x35, 0x77, 0x69, 0xFB}
