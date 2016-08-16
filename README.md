@@ -10,7 +10,7 @@ disabled in all of our software that includes it. You can view the source
 of this client to see that we're not sending any private information.
 
 Each Hashicorp application has it's specific configuration option
-to disable chekpoint calls, but the `CHECKPOINT_DISABLE` makes
+to disable checkpoint calls, but the `CHECKPOINT_DISABLE` makes
 the underlying checkpoint component itself disabled. For example
 in the case of packer:
 ```
