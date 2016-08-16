@@ -1,7 +1,7 @@
 # Go Checkpoint Client
 
 [Checkpoint](http://checkpoint.hashicorp.com) is an internal service at
-Hashicorp that we use to check version information, broadcoast security
+Hashicorp that we use to check version information, broadcast security
 bulletins, etc.
 
 We understand that software making remote calls over the internet
