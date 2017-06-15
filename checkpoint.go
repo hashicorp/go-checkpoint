@@ -98,15 +98,6 @@ func Report(ctx context.Context, r *ReportParams) error {
 		return err
 	}
 
-	// file logging while debugging
-	file, err := os.OpenFile("telemetry.log", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0755)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	file.Write(b)
-	file.WriteString("\n")
-
 	u := &url.URL{
 		Scheme: "https",
 		Host:   "checkpoint-api.hashicorp.com",
