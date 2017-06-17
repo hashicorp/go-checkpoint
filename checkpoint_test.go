@@ -1,10 +1,12 @@
 package checkpoint
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -197,5 +199,35 @@ func TestRandomStagger(t *testing.T) {
 		if out < min || out > max {
 			t.Fatalf("bad: %v", out)
 		}
+	}
+}
+
+func TestReport_sendsRequest(t *testing.T) {
+	r := &ReportParams{
+		Signature: "sig",
+		Product:   "prod",
+	}
+
+	req, err := ReportRequest(r)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if !strings.HasSuffix(req.URL.Path, "/telemetry/prod") {
+		t.Fatalf("Expected url to have the product. Got %s", req.URL.String())
+	}
+
+	b, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	var p ReportParams
+	if err := json.Unmarshal(b, &p); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	if p.Signature != "sig" {
+		t.Fatalf("Expected request body to have data from request. got %#v", p)
 	}
 }
