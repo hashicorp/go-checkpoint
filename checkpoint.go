@@ -72,11 +72,30 @@ func Report(ctx context.Context, r *ReportParams) error {
 		return nil
 	}
 
+	req, err := ReportRequest(r)
+	if err != nil {
+		return err
+	}
+
+	client := cleanhttp.DefaultClient()
+	resp, err := client.Do(req.WithContext(ctx))
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 201 {
+		return fmt.Errorf("Unknown status: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+// ReportRequest creates a request object for making a report
+func ReportRequest(r *ReportParams) (*http.Request, error) {
 	// Populate some fields automatically if we can
 	if r.RunID == "" {
 		uuid, err := uuid.GenerateUUID()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		r.RunID = uuid
 	}
@@ -95,7 +114,7 @@ func Report(ctx context.Context, r *ReportParams) error {
 
 	b, err := json.Marshal(r)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	u := &url.URL{
@@ -106,21 +125,12 @@ func Report(ctx context.Context, r *ReportParams) error {
 
 	req, err := http.NewRequest("POST", u.String(), bytes.NewReader(b))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("User-Agent", "HashiCorp/go-checkpoint")
 
-	client := cleanhttp.DefaultClient()
-	resp, err := client.Do(req.WithContext(ctx))
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 201 {
-		return fmt.Errorf("Unknown status: %d", resp.StatusCode)
-	}
-
-	return nil
+	return req, nil
 }
 
 // CheckParams are the parameters for configuring a check request.
