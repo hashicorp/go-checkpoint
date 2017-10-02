@@ -250,6 +250,11 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	req.Header.Add("User-Agent", "HashiCorp/go-checkpoint")
 
 	client := cleanhttp.DefaultClient()
+
+	// We use a short timeout since checking for new versions is not critical
+	// enough to block on if checkpoint is broken/slow.
+	client.Timeout = time.Duration(1 * time.Second)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
