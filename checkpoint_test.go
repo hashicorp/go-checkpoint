@@ -37,6 +37,22 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestCheckTimeout(t *testing.T) {
+	os.Setenv("CHECKPOINT_TIMEOUT", "50")
+	defer os.Setenv("CHECKPOINT_TIMEOUT", "")
+
+	expected := "Client.Timeout exceeded while awaiting headers"
+
+	actual, err := Check(&CheckParams{
+		Product: "test",
+		Version: "1.0",
+	})
+
+	if !strings.Contains(err.Error(), expected) {
+		t.Fatalf("bad: %#v", actual)
+	}
+}
+
 func TestCheck_disabled(t *testing.T) {
 	os.Setenv("CHECKPOINT_DISABLE", "1")
 	defer os.Setenv("CHECKPOINT_DISABLE", "")
