@@ -1,5 +1,5 @@
 // checkpoint is a package for checking version information and alerts
-// for a HashiCorp product.
+// for a Solo.io product.
 package checkpoint
 
 import (
@@ -24,6 +24,11 @@ import (
 
 	"github.com/hashicorp/go-cleanhttp"
 	uuid "github.com/hashicorp/go-uuid"
+)
+
+const (
+	DefaultCheckpointHost = "checkpoint-api.solo.io"
+	DefaultUserAgent      = "solo.io/go-checkpoint"
 )
 
 var magicBytes [4]byte = [4]byte{0x35, 0x77, 0x69, 0xFB}
@@ -115,8 +120,8 @@ func ReportRequest(r *ReportParams) (*http.Request, error) {
 	}
 
 	u := &url.URL{
-		Scheme: "https",
-		Host:   "checkpoint-api.hashicorp.com",
+		Scheme: checkpointScheme(),
+		Host:   checkpointHost(),
 		Path:   fmt.Sprintf("/v1/telemetry/%s", r.Product),
 	}
 
@@ -125,7 +130,7 @@ func ReportRequest(r *ReportParams) (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "HashiCorp/go-checkpoint")
+	req.Header.Add("User-Agent", DefaultUserAgent)
 
 	return req, nil
 }
@@ -169,7 +174,7 @@ type CheckParams struct {
 	CacheDuration time.Duration
 
 	// Force, if true, will force the check even if CHECKPOINT_DISABLE
-	// is set. Within HashiCorp products, this is ONLY USED when the user
+	// is set. Within Solo.io products, this is ONLY USED when the user
 	// specifically requests it. This is never automatically done without
 	// the user's consent.
 	Force bool
@@ -244,8 +249,8 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	v.Set("os", p.OS)
 	v.Set("signature", signature)
 
-	u.Scheme = "https"
-	u.Host = "checkpoint-api.hashicorp.com"
+	u.Scheme = checkpointScheme()
+	u.Host = checkpointHost()
 	u.Path = fmt.Sprintf("/v1/check/%s", p.Product)
 	u.RawQuery = v.Encode()
 
@@ -254,7 +259,7 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 		return nil, err
 	}
 	req.Header.Add("Accept", "application/json")
-	req.Header.Add("User-Agent", "HashiCorp/go-checkpoint")
+	req.Header.Add("User-Agent", DefaultUserAgent)
 
 	client := cleanhttp.DefaultClient()
 
@@ -463,6 +468,28 @@ func writeCacheHeader(f io.Writer, v string) error {
 
 	_, err := f.Write([]byte(v))
 	return err
+}
+
+func checkpointScheme() string {
+	cpurl := os.Getenv("CHECKPOINT_URL")
+	if cpurl != "" {
+		u, err := url.Parse(cpurl)
+		if err == nil {
+			return u.Scheme
+		}
+	}
+	return "https"
+}
+
+func checkpointHost() string {
+	cpurl := os.Getenv("CHECKPOINT_URL")
+	if cpurl != "" {
+		u, err := url.Parse(cpurl)
+		if err == nil {
+			return u.Host
+		}
+	}
+	return DefaultCheckpointHost
 }
 
 // userMessage is suffixed to the signature file to provide feedback.
