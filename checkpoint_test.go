@@ -2,7 +2,10 @@ package checkpoint
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -11,6 +14,31 @@ import (
 	"time"
 )
 
+func TestMain(m *testing.M) {
+	defer setup()()
+	os.Exit(m.Run())
+}
+
+func setup() func() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond) // for timeout case
+		response := &CheckResponse{
+			Product:             "test",
+			CurrentVersion:      "1.0",
+			CurrentReleaseDate:  0,
+			CurrentDownloadURL:  "http://www.solo.io",
+			CurrentChangelogURL: "http://www.solo.io",
+			ProjectWebsite:      "http://www.solo.io",
+		}
+		json.NewEncoder(w).Encode(response)
+	}))
+	fmt.Println("using checkpoint server at ", srv.URL)
+	os.Setenv("CHECKPOINT_URL", srv.URL)
+	return func() {
+		srv.Close()
+		os.Setenv("CHECKPOINT_URL", "")
+	}
+}
 func TestCheck(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
@@ -20,7 +48,7 @@ func TestCheck(t *testing.T) {
 		CurrentChangelogURL: "http://www.solo.io",
 		ProjectWebsite:      "http://www.solo.io",
 		Outdated:            false,
-		Alerts:              []*CheckAlert{},
+		Alerts:              nil,
 	}
 
 	actual, err := Check(&CheckParams{
@@ -87,7 +115,7 @@ func TestCheck_cache(t *testing.T) {
 		CurrentChangelogURL: "http://www.solo.io",
 		ProjectWebsite:      "http://www.solo.io",
 		Outdated:            false,
-		Alerts:              []*CheckAlert{},
+		Alerts:              nil,
 	}
 
 	var actual *CheckResponse
@@ -122,7 +150,7 @@ func TestCheck_cacheNested(t *testing.T) {
 		CurrentChangelogURL: "http://www.solo.io",
 		ProjectWebsite:      "http://www.solo.io",
 		Outdated:            false,
-		Alerts:              []*CheckAlert{},
+		Alerts:              nil,
 	}
 
 	var actual *CheckResponse
@@ -152,7 +180,7 @@ func TestCheckInterval(t *testing.T) {
 		CurrentChangelogURL: "http://www.solo.io",
 		ProjectWebsite:      "http://www.solo.io",
 		Outdated:            false,
-		Alerts:              []*CheckAlert{},
+		Alerts:              nil,
 	}
 
 	params := &CheckParams{
