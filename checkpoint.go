@@ -42,6 +42,7 @@ type ReportParams struct {
 	// ignored if Signature is given.
 	Signature     string `json:"signature"`
 	SignatureFile string `json:"-"`
+	SignaturePerms os.FileMode `json:"-"`
 
 	StartTime     time.Time   `json:"start_time"`
 	EndTime       time.Time   `json:"end_time"`
@@ -56,9 +57,13 @@ type ReportParams struct {
 
 func (i *ReportParams) signature() string {
 	signature := i.Signature
+	mode := i.SignaturePerms
+	if mode == 0 {
+		mode = 0644
+	}
 	if i.Signature == "" && i.SignatureFile != "" {
 		var err error
-		signature, err = checkSignature(i.SignatureFile)
+		signature, err = checkSignature(i.SignatureFile, mode)
 		if err != nil {
 			return ""
 		}
@@ -154,8 +159,9 @@ type CheckParams struct {
 	// file. If the file doesn't exist, then a random signature will
 	// automatically be generated and stored here. SignatureFile will be
 	// ignored if Signature is given.
-	Signature     string
-	SignatureFile string
+	Signature      string
+	SignatureFile  string
+	SignaturePerms os.FileMode
 
 	// CacheFile, if specified, will cache the result of a check. The
 	// duration of the cache is specified by CacheDuration, and defaults
@@ -230,9 +236,13 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 
 	// If we're given a SignatureFile, then attempt to read that.
 	signature := p.Signature
+	mode := p.SignaturePerms
+        if mode == 0 {
+		mode = 0644
+	}
 	if p.Signature == "" && p.SignatureFile != "" {
 		var err error
-		signature, err = checkSignature(p.SignatureFile)
+		signature, err = checkSignature(p.SignatureFile, mode)
 		if err != nil {
 			return nil, err
 		}
@@ -401,7 +411,7 @@ func checkResult(r io.Reader) (*CheckResponse, error) {
 	return &result, nil
 }
 
-func checkSignature(path string) (string, error) {
+func checkSignature(path string, mode os.FileMode) (string, error) {
 	_, err := os.Stat(path)
 	if err == nil {
 		// The file exists, read it out
@@ -442,7 +452,7 @@ func checkSignature(path string) (string, error) {
 	}
 
 	// Write the signature
-	if err := ioutil.WriteFile(path, []byte(signature+"\n\n"+userMessage+"\n"), 0644); err != nil {
+	if err := ioutil.WriteFile(path, []byte(signature+"\n\n"+userMessage+"\n"), mode); err != nil {
 		return "", err
 	}
 
