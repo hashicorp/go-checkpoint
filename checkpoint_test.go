@@ -37,6 +37,66 @@ func TestCheck(t *testing.T) {
 	}
 }
 
+func TestCheck_signatureFilePermsDefault(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "go-checkpoint")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %s", err)
+	}
+   defer os.RemoveAll(tmpDir)
+   
+   signaturePath := filepath.Join(tmpDir, "test.sig")
+   _, err = Check(&CheckParams{
+   	Product: "test",
+   	Version: "1.0",
+   	SignatureFile: signaturePath,
+	})
+	
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	
+	info, err := os.Stat(signaturePath)
+	
+	if info.Mode() != os.FileMode(0644) {
+		// NOTE: A umask that allows permissions for 644 is expected. This test will fail if you have
+		//       a umask setting that restricts any of u+rw, g+r and o+r permissions
+		t.Fatalf("err: signature file has invalid permissions, expecting: 644 actual: %#o", info.Mode())
+	}
+}
+
+func TestCheck_signatureFilePermsAlt(t *testing.T) {
+	tmpDir, err := ioutil.TempDir("", "go-checkpoint")
+	if err != nil {
+		t.Fatalf("Failed to create temporary directory: %s", err)
+	}
+   defer os.RemoveAll(tmpDir)
+   
+   signaturePath := filepath.Join(tmpDir, "test.sig")
+   _, err = Check(&CheckParams{
+   	Product: "test",
+   	Version: "1.0",
+   	SignatureFile: signaturePath,
+   	SignaturePerms: 0600,
+	})
+	
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	
+	info, err := os.Stat(signaturePath)
+	
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	
+	if info.Mode() != os.FileMode(0600) {
+		// NOTE: A umask that allows permissions for 600 is expected. This test will fail if you have
+		//       a umask setting that restricts any of u+rw permissions
+		t.Fatalf("err: signature file has invalid permissions, expecting: 600 actual: %#o", info.Mode())
+	}
+}
+
+
 func TestCheckTimeout(t *testing.T) {
 	os.Setenv("CHECKPOINT_TIMEOUT", "50")
 	defer os.Setenv("CHECKPOINT_TIMEOUT", "")
