@@ -29,6 +29,7 @@ import (
 const (
 	DefaultCheckpointHost = "checkpoint-api.solo.io"
 	DefaultUserAgent      = "solo.io/go-checkpoint"
+	DefaultScheme         = "https"
 )
 
 var magicBytes [4]byte = [4]byte{0x35, 0x77, 0x69, 0xFB}
@@ -120,8 +121,8 @@ func ReportRequest(r *ReportParams) (*http.Request, error) {
 	}
 
 	u := &url.URL{
-		Scheme: checkpointScheme(),
-		Host:   checkpointHost(),
+		Scheme: DefaultScheme,
+		Host:   DefaultCheckpointHost,
 		Path:   fmt.Sprintf("/v1/telemetry/%s", r.Product),
 	}
 
@@ -249,8 +250,8 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	v.Set("os", p.OS)
 	v.Set("signature", signature)
 
-	u.Scheme = checkpointScheme()
-	u.Host = checkpointHost()
+	u.Scheme = DefaultScheme
+	u.Host = DefaultCheckpointHost
 	u.Path = fmt.Sprintf("/v1/check/%s", p.Product)
 	u.RawQuery = v.Encode()
 
@@ -468,28 +469,6 @@ func writeCacheHeader(f io.Writer, v string) error {
 
 	_, err := f.Write([]byte(v))
 	return err
-}
-
-func checkpointScheme() string {
-	cpurl := os.Getenv("CHECKPOINT_URL")
-	if cpurl != "" {
-		u, err := url.Parse(cpurl)
-		if err == nil {
-			return u.Scheme
-		}
-	}
-	return "https"
-}
-
-func checkpointHost() string {
-	cpurl := os.Getenv("CHECKPOINT_URL")
-	if cpurl != "" {
-		u, err := url.Parse(cpurl)
-		if err == nil {
-			return u.Host
-		}
-	}
-	return DefaultCheckpointHost
 }
 
 // userMessage is suffixed to the signature file to provide feedback.
