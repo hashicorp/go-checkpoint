@@ -41,7 +41,7 @@ func Format1(product string, version string, t time.Time) {
 		sigfile = filepath.Join(configDir, "soloio.sig")
 	}
 	ctx := context.Background()
-	report := &checkpoint.ReportParams{
+	report := &ReportParams{
 		Product:       product,
 		Version:       version,
 		StartTime:     t,
