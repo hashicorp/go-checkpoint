@@ -33,13 +33,17 @@ func ConfigDir() (string, error) {
 	return d, err
 }
 
-// Format1 calls a basic version check
-func Format1(product string, version string, t time.Time) {
+func getSigfile() string {
 	sigfile := filepath.Join(HomeDir(), ".soloio.sig")
 	configDir, err := ConfigDir()
 	if err == nil {
 		sigfile = filepath.Join(configDir, "soloio.sig")
 	}
+}
+
+// Format1 calls a basic version check
+func Format1(product string, version string, t time.Time) {
+	sigfile := getSigfile()
 	ctx := context.Background()
 	report := &ReportParams{
 		Product:       product,
@@ -47,6 +51,28 @@ func Format1(product string, version string, t time.Time) {
 		StartTime:     t,
 		EndTime:       time.Now(),
 		SignatureFile: sigfile,
+		Type:          "r1",
 	}
 	Report(ctx, report)
+}
+
+// SubFormat1 calls a basic version check at an interval
+func SubFormat1(product string, version string, t time.Time) {
+	sigfile := getSigfile()
+	ctx := context.Background()
+	params := &CheckParams{
+		Product:       product,
+		Version:       version,
+		SignatureFile: sigfile,
+		Type:          "s1",
+	}
+	cb := func(resp *CheckResponse, err error) {
+		if err != nil {
+			return
+		}
+		if resp.CurrentVersion != "" && resp.CurrentVersion != version {
+			fmt.Println("A new version of %v is available.", product)
+		}
+	}
+	CheckInterval(params, 24*time.Hour, cb)
 }

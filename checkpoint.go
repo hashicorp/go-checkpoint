@@ -55,6 +55,7 @@ type ReportParams struct {
 	OS            string      `json:"os"`
 	Payload       interface{} `json:"payload,omitempty"`
 	Product       string      `json:"product"`
+	Type          string      `json:"type"`
 	RunID         string      `json:"run_id"`
 	SchemaVersion string      `json:"schema_version"`
 	Version       string      `json:"version"`
@@ -140,9 +141,10 @@ func ReportRequest(r *ReportParams) (*http.Request, error) {
 type CheckParams struct {
 	// Product and version are used to lookup the correct product and
 	// alerts for the proper version. The version is also used to perform
-	// a version check.
+	// a version check. Type corresponds to the checkpoint package version.
 	Product string
 	Version string
+	Type    string
 
 	// Arch and OS are used to filter alerts potentially only to things
 	// affecting a specific os/arch combination. If these aren't specified,
