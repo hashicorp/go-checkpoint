@@ -1,7 +1,6 @@
 package checkpoint
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -27,29 +26,28 @@ func TestCheck(t *testing.T) {
 		Product: "test",
 		Version: "1.0",
 	})
-
 	if err != nil {
-		t.Fatalf("err: %s", err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("bad: %#v", actual)
+		t.Fatalf("expected %#v, got: %#v", expected, actual)
 	}
 }
 
-func TestCheckTimeout(t *testing.T) {
+func TestCheck_timeout(t *testing.T) {
 	os.Setenv("CHECKPOINT_TIMEOUT", "50")
 	defer os.Setenv("CHECKPOINT_TIMEOUT", "")
 
 	expected := "Client.Timeout exceeded while awaiting headers"
 
-	actual, err := Check(&CheckParams{
+	_, err := Check(&CheckParams{
 		Product: "test",
 		Version: "1.0",
 	})
 
-	if !strings.Contains(err.Error(), expected) {
-		t.Fatalf("bad: %#v", actual)
+	if err == nil || !strings.Contains(err.Error(), expected) {
+		t.Fatalf("expected a timeout error, got: %v", err)
 	}
 }
 
@@ -63,13 +61,12 @@ func TestCheck_disabled(t *testing.T) {
 		Product: "test",
 		Version: "1.0",
 	})
-
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("expected %+v to equal %+v", actual, expected)
+		t.Fatalf("expected %#v, got: %#v", expected, actual)
 	}
 }
 
@@ -99,12 +96,12 @@ func TestCheck_cache(t *testing.T) {
 			CacheFile: filepath.Join(dir, "cache"),
 		})
 		if err != nil {
-			t.Fatalf("err: %s", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 	}
 
 	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("bad: %#v", actual)
+		t.Fatalf("expected %#v, got: %#v", expected, actual)
 	}
 }
 
@@ -134,12 +131,12 @@ func TestCheck_cacheNested(t *testing.T) {
 			CacheFile: filepath.Join(dir, "nested", "cache"),
 		})
 		if err != nil {
-			t.Fatalf("err: %s", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 	}
 
 	if !reflect.DeepEqual(actual, expected) {
-		t.Fatalf("bad: %#v", actual)
+		t.Fatalf("expected %#v, got: %#v", expected, actual)
 	}
 }
 
@@ -164,11 +161,11 @@ func TestCheckInterval(t *testing.T) {
 	checkFn := func(actual *CheckResponse, err error) {
 		defer close(calledCh)
 		if err != nil {
-			t.Fatalf("err: %s", err)
+			t.Fatalf("unexpected error: %v", err)
 		}
 
 		if !reflect.DeepEqual(actual, expected) {
-			t.Fatalf("bad: %#v", actual)
+			t.Fatalf("expected %#v, got: %#v", expected, actual)
 		}
 	}
 
@@ -177,7 +174,7 @@ func TestCheckInterval(t *testing.T) {
 
 	select {
 	case <-calledCh:
-	case <-time.After(time.Second):
+	case <-time.After(1250 * time.Millisecond):
 		t.Fatalf("timeout")
 	}
 }
@@ -213,37 +210,7 @@ func TestRandomStagger(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		out := randomStagger(intv)
 		if out < min || out > max {
-			t.Fatalf("bad: %v", out)
+			t.Fatalf("unexpected value: %v", out)
 		}
-	}
-}
-
-func TestReport_sendsRequest(t *testing.T) {
-	r := &ReportParams{
-		Signature: "sig",
-		Product:   "prod",
-	}
-
-	req, err := ReportRequest(r)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	if !strings.HasSuffix(req.URL.Path, "/telemetry/prod") {
-		t.Fatalf("Expected url to have the product. Got %s", req.URL.String())
-	}
-
-	b, err := ioutil.ReadAll(req.Body)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	var p ReportParams
-	if err := json.Unmarshal(b, &p); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	if p.Signature != "sig" {
-		t.Fatalf("Expected request body to have data from request. got %#v", p)
 	}
 }
