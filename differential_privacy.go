@@ -405,7 +405,7 @@ var consulConfigFields = []string{
 
 // DPClient stores our measurements locally
 type DPClient struct {
-	store *store
+	store  *store
 	errors []error
 }
 
@@ -428,11 +428,11 @@ func NewDPClient() DPClient {
 		MaxPartitionsContributed: 2,
 		Noise:                    noise.Laplace(),
 	}
-	agentsCount["0-10"]       = dpagg.NewCount(agentsCountOpts)
-	agentsCount["11-100"]     = dpagg.NewCount(agentsCountOpts)
-	agentsCount["101-1000"]   = dpagg.NewCount(agentsCountOpts)
+	agentsCount["0-10"] = dpagg.NewCount(agentsCountOpts)
+	agentsCount["11-100"] = dpagg.NewCount(agentsCountOpts)
+	agentsCount["101-1000"] = dpagg.NewCount(agentsCountOpts)
 	agentsCount["1001-10000"] = dpagg.NewCount(agentsCountOpts)
-	agentsCount["10000+"]     = dpagg.NewCount(agentsCountOpts)
+	agentsCount["10000+"] = dpagg.NewCount(agentsCountOpts)
 
 	// Initialize config
 	config := make(map[string]*dpagg.Count)
@@ -457,21 +457,26 @@ func NewDPClient() DPClient {
 
 // Write takes a simulated cluster size and a simulated map of enabled agent config and applies their values to our
 //  local client's differentially private stores
-func (c *DPClient) Write(clusterSize int64, config map[string]bool) {
+func (c *DPClient) Write(clusterSize int64, config map[string]bool) error {
 	c.store.agentSum.Add(clusterSize)
-	c.bucketAgentsCount(clusterSize)
 	c.store.agentSumActual = clusterSize
-	c.bucketConfigCount(config)
+	c.store.bucketConfigCount(config)
+	if err := c.store.bucketAgentsCount(clusterSize); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Submit sends the DPClient's data to the aggregating server.
-func (c *DPClient) Submit() {
+func (c *DPClient) Submit() error {
 	address := fmt.Sprintf("http://%s:%d/submit", address, port)
 
 	// Encode AgentsSum
 	agents, err := c.store.agentSum.GobEncode()
 	if err != nil {
-		panic(err)
+		err = fmt.Errorf("error while encoding agent sum: %s", err)
+		c.errors = append(c.errors, err)
+		return err
 	}
 
 	// Encode AgentsCount
@@ -479,7 +484,9 @@ func (c *DPClient) Submit() {
 	for k, v := range c.store.agentCount {
 		a, err := v.GobEncode()
 		if err != nil {
-			panic(err)
+			err = fmt.Errorf("error while encoding agent count %s: %s", k, err)
+			c.errors = append(c.errors, err)
+			return err
 		}
 		agentsCount[k] = a
 	}
@@ -489,7 +496,9 @@ func (c *DPClient) Submit() {
 	for k, v := range c.store.configCount {
 		a, err := v.GobEncode()
 		if err != nil {
-			panic(err)
+			err = fmt.Errorf("error while encoding config count %s: %s", k, err)
+			c.errors = append(c.errors, err)
+			return err
 		}
 		configCount[k] = a
 	}
@@ -503,58 +512,93 @@ func (c *DPClient) Submit() {
 
 	body, err := json.Marshal(s)
 	if err != nil {
-		// FIXME
-		panic(err)
+		c.errors = append(c.errors, err)
+		return err
 	}
 
 	req, err := http.NewRequest("POST", address, bytes.NewBuffer(body))
 	if err != nil {
-		panic(err)
+		c.errors = append(c.errors, err)
+		return err
 	}
+
 	req.Header.Set("Content-Type", "application/json")
 	client := http.DefaultClient
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		c.errors = append(c.errors, err)
-		fmt.Println(err)
+		return err
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		err = fmt.Errorf("bad status code %d while submitting to server: %s",
+			resp.StatusCode, err)
+		c.errors = append(c.errors, err)
+		return err
+	}
+
+	return nil
 }
 
-// FIXME: Flush is a noop. We should eventually use it to reset all of the dpaggs so we can encode them again
+// Flush FIXME: is a noop. We should eventually use it to reset all of the dpaggs so we can encode them again
 func (c *DPClient) Flush() {
 	return
 }
 
-func (c *DPClient) bucketAgentsCount(clusterSize int64) {
+func (s *store) bucketAgentsCount(clusterSize int64) error {
 	switch {
 	case 0 <= clusterSize && clusterSize <= 10:
-		c.store.agentCount["0-10"].Increment()
+		s.agentCount["0-10"].Increment()
 	case 11 <= clusterSize && clusterSize <= 100:
-		c.store.agentCount["11-100"].Increment()
+		s.agentCount["11-100"].Increment()
 	case 101 <= clusterSize && clusterSize <= 1000:
-		c.store.agentCount["101-1000"].Increment()
+		s.agentCount["101-1000"].Increment()
 	case 1001 <= clusterSize && clusterSize <= 10000:
-		c.store.agentCount["1001-10000"].Increment()
+		s.agentCount["1001-10000"].Increment()
 	case clusterSize > 10000:
-		c.store.agentCount["10000+"].Increment()
+		s.agentCount["10000+"].Increment()
 	default:
-		panic(fmt.Sprintf("value not right!! %d", clusterSize))
+		return fmt.Errorf("invalid clustersize '%d'. unable to bucket agent count", clusterSize)
 	}
+	return nil
 }
 
-func (c *DPClient) bucketConfigCount(config map[string]bool) {
+func (s *store) bucketConfigCount(config map[string]bool) {
 	for k, v := range config {
 		if v {
-			c.store.configCount[k].Increment()
+			s.configCount[k].Increment()
 		}
 	}
 }
 
+func (s *store) bucketAgentsCountActual(clusterSize int64) error {
+	switch {
+	case 0 <= clusterSize && clusterSize <= 10:
+		s.agentCountActual["0-10"]++
+	case 11 <= clusterSize && clusterSize <= 100:
+		s.agentCountActual["11-100"]++
+	case 101 <= clusterSize && clusterSize <= 1000:
+		s.agentCountActual["101-1000"]++
+	case 1001 <= clusterSize && clusterSize <= 10000:
+		s.agentCountActual["1001-10000"]++
+	case clusterSize > 10000:
+		s.agentCountActual["10000+"]++
+	default:
+		return fmt.Errorf("invalid clustersize '%d'. unable to bucket agent count actual",
+			clusterSize)
+	}
+	return nil
+}
+
 func main() {
 	client := NewDPClient()
-	client.Write(simulateClusterSize(), simulateConfig())
-	client.Submit()
+	if err := client.Write(simulateClusterSize(), simulateConfig()); err != nil {
+		fmt.Printf("error while writing simulated data: %s\n", err)
+	}
+	if err := client.Submit(); err != nil {
+		fmt.Printf("error while submitting data: %s\n", err)
+	}
 	client.Flush()
 	return
 }

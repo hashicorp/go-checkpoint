@@ -18,22 +18,32 @@ func TestTheFnCalledMain(t *testing.T) {
 	}
 
 	// Retrieve results
-	Get("/agent/sum")
-	Get("/agent/count")
+	if err := Get("/agent/sum"); err != nil {
+		fmt.Println(err)
+	}
+	if err := Get("/agent/count"); err != nil {
+		fmt.Println(err)
+	}
 }
-
 
 func TestSimulateConfig(t *testing.T) {
-   fmt.Printf("%v\n", simulateConfig())
+	fmt.Printf("%v\n", simulateConfig())
 }
 
-func Get(path string) {
+func Get(path string) error {
 	u := fmt.Sprintf("http://localhost:%d%s", port, path)
 	resp, err := http.Get(u)
 	if err != nil {
-		panic(err) // FIXME
+		return fmt.Errorf("error requesting '%s': %s", u, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("error requesting '%s' - returned status code %d ",
+			u, resp.StatusCode)
+	}
+
+	return nil
 }
 
 // func TestDifferentialPrivacy(t *testing.T) {

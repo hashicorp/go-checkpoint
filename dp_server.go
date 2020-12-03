@@ -28,10 +28,9 @@ type store struct {
 	//  TestSimulateConfig should show you what this looks like before we encode it!
 	//  Then I translate that bool into a Count with a single increment on the client - we should be able to merge them
 	//  into the store on the server from there!
-	configCount      map[string]*dpagg.Count
+	configCount map[string]*dpagg.Count
 }
 
-// Serve serves
 func serveDiffPriv() error {
 	opts := &dpagg.BoundedSumInt64Options{
 		Epsilon:                  epsilon,
@@ -86,10 +85,10 @@ type submitHandler struct {
 }
 
 type submitBody struct {
-	AgentsSum   []byte            `json:"agents_sum"`
-	AgentsCount map[string][]byte `json:"agents_count"`
-	AgentsActual int64            `json:"agents_actual"`
-	ConfigCount map[string][]byte `json:"config_count"`
+	AgentsSum    []byte            `json:"agents_sum"`
+	AgentsCount  map[string][]byte `json:"agents_count"`
+	AgentsActual int64             `json:"agents_actual"`
+	ConfigCount  map[string][]byte `json:"config_count"`
 }
 
 func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -97,7 +96,9 @@ func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var body submitBody
 	if err := decoder.Decode(&body); err != nil {
-		panic(err) // FIXME:
+		jsonResponse(w, http.StatusBadRequest, map[string]string{
+			"err": err.Error(),
+		})
 	}
 
 	// agents sum
@@ -110,7 +111,9 @@ func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	serverAgents := dpagg.NewBoundedSumInt64(opts)
 	if err := serverAgents.GobDecode(body.AgentsSum); err != nil {
-		panic(err)
+		jsonResponse(w, http.StatusBadRequest, map[string]string{
+			"err": err.Error(),
+		})
 	}
 	h.store.agentSum.Merge(serverAgents)
 
@@ -125,25 +128,14 @@ func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		serverAgents2 := dpagg.NewCount(agentsCountOpts)
 		if err := serverAgents2.GobDecode(agentCount); err != nil {
-			panic(err)
+			jsonResponse(w, http.StatusBadRequest, map[string]string{
+				"err": err.Error(),
+			})
 		}
 		h.store.agentCount[k].Merge(serverAgents2)
 	}
 
-	switch {
-	case 0 <= body.AgentsActual && body.AgentsActual <= 10:
-		h.store.agentCountActual["0-10"]++
-	case 11 <= body.AgentsActual && body.AgentsActual <= 100:
-		h.store.agentCountActual["11-100"]++
-	case 101 <= body.AgentsActual && body.AgentsActual <= 1000:
-		h.store.agentCountActual["101-1000"]++
-	case 1001 <= body.AgentsActual && body.AgentsActual <= 10000:
-		h.store.agentCountActual["1001-10000"]++
-	case body.AgentsActual > 10000:
-		h.store.agentCountActual["10000+"]++
-	default:
-		panic(fmt.Sprintf("value not right!! %v", body.AgentsActual))
-	}
+	h.store.bucketAgentsCountActual(body.AgentsActual)
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -240,9 +232,18 @@ func (h *agentCountHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer fa.Close()
 	actualGraph.Render(chart.PNG, fa)
 
-	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]int64{
-		// "agent_count": sum,
+	jsonResponse(w, http.StatusOK, map[string]string{
+		"msg": "see generated histogram charts",
 	})
+}
+
+func jsonResponse(w http.ResponseWriter, code int, response interface{}) {
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// at this point, we've tried to return the error. log it out for now
+		// and still send the status code
+		fmt.Printf("error encoding status '%d' with response '%s': %s",
+			code, response, err)
+	}
 }
