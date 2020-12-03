@@ -591,16 +591,18 @@ func (s *store) bucketAgentsCountActual(clusterSize int64) error {
 	return nil
 }
 
-func main() {
+// SimulateClientDonations simulates a client donating differentially privatized
+// data
+func SimulateClientDonations() error {
 	client := NewDPClient()
 	if err := client.Write(simulateClusterSize(), simulateConfig()); err != nil {
-		fmt.Printf("error while writing simulated data: %s\n", err)
+		return fmt.Errorf("error while writing simulated data: %s", err)
 	}
 	if err := client.Submit(); err != nil {
-		fmt.Printf("error while submitting data: %s\n", err)
+		return fmt.Errorf("error while submitting data: %s", err)
 	}
 	client.Flush()
-	return
+	return nil
 }
 
 // simulateClusterSize returns a simulated number of agents in a cluster, weighting towards smaller cluster sizes rather

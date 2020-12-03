@@ -11,10 +11,10 @@ import (
 func TestTheFnCalledMain(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
-	go serveDiffPriv()
+	go ServeDiffPriv()
 	runs := 10000
 	for i := 0; i < runs; i++ {
-		main()
+		SimulateClientDonations()
 	}
 
 	// Retrieve results

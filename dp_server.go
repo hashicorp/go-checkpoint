@@ -31,7 +31,8 @@ type store struct {
 	configCount map[string]*dpagg.Count
 }
 
-func serveDiffPriv() error {
+// ServeDiffPriv serves the differential privacy server
+func ServeDiffPriv() error {
 	opts := &dpagg.BoundedSumInt64Options{
 		Epsilon:                  epsilon,
 		MaxPartitionsContributed: 1,
@@ -73,6 +74,7 @@ func serveDiffPriv() error {
 		Handler:      mux,
 	}
 
+	fmt.Printf("Starting diferential privacy server at %d\n", port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		return fmt.Errorf("error starting api server at '%d': '%s'", port, err)
 	}
@@ -166,7 +168,8 @@ func (h *agentSumHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]int64{
-		"agent_sum": sum,
+		"agent_sum":        sum,
+		"agent_sum_actual": h.store.agentSumActual,
 	})
 }
 
