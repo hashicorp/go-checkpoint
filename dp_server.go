@@ -14,7 +14,7 @@ import (
 
 const epsilon = 2.0
 
-// store stores differtially private data from users
+// store stores differentially private data from users
 type store struct {
 	agentSum       *dpagg.BoundedSumInt64
 	agentSumActual int64
@@ -22,6 +22,13 @@ type store struct {
 	// interval ranges: 0-10, 11-100, 101-1000, 1001-10000, 10000+
 	agentCount       map[string]*dpagg.Count
 	agentCountActual map[string]int
+
+	// TODO(Kit): Hey Lorna! I simulated a map of {config key: bool} for _every_ config flag in Consul. There's a 33%
+	//  chance that we flip the bool to "true", simulating that a user is running the Consul agent with that config set.
+	//  TestSimulateConfig should show you what this looks like before we encode it!
+	//  Then I translate that bool into a Count with a single increment on the client - we should be able to merge them
+	//  into the store on the server from there!
+	configCount      map[string]*dpagg.Count
 }
 
 // Serve serves
@@ -50,6 +57,7 @@ func serveDiffPriv() error {
 		agentSum:         dpagg.NewBoundedSumInt64(opts),
 		agentCount:       agentsCount,
 		agentCountActual: make(map[string]int),
+		//configCount: FIXME(kit),
 	}
 
 	mux := http.NewServeMux()
@@ -80,8 +88,8 @@ type submitHandler struct {
 type submitBody struct {
 	AgentsSum   []byte            `json:"agents_sum"`
 	AgentsCount map[string][]byte `json:"agents_count"`
-
-	AgentsActual int64 `json:"agents_actual"`
+	AgentsActual int64            `json:"agents_actual"`
+	ConfigCount map[string][]byte `json:"config_count"`
 }
 
 func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +142,7 @@ func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case body.AgentsActual > 10000:
 		h.store.agentCountActual["10000+"]++
 	default:
-		panic("value not right!!" + string(body.AgentsActual))
+		panic(fmt.Sprintf("value not right!! %v", body.AgentsActual))
 	}
 
 	w.Header().Add("Content-Type", "application/json")

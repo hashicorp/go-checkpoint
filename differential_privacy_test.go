@@ -22,6 +22,11 @@ func TestTheFnCalledMain(t *testing.T) {
 	Get("/agent/count")
 }
 
+
+func TestSimulateConfig(t *testing.T) {
+   fmt.Printf("%v\n", simulateConfig())
+}
+
 func Get(path string) {
 	u := fmt.Sprintf("http://localhost:%d%s", port, path)
 	resp, err := http.Get(u)
