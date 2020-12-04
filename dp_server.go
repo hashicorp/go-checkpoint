@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/google/differential-privacy/go/dpagg"
@@ -16,6 +18,8 @@ const epsilon = 2.0
 
 // store stores differentially private data from users
 type store struct {
+	lock sync.Mutex
+
 	agentSum       *dpagg.BoundedSumInt64
 	agentSumActual int64
 
@@ -53,17 +57,20 @@ func ServeDiffPriv() error {
 	agentsCount["1001-10000"] = dpagg.NewCount(agentsCountOpts)
 	agentsCount["10000+"] = dpagg.NewCount(agentsCountOpts)
 
+	configCount := make(map[string]*dpagg.Count)
+
 	store := &store{
 		agentSum:         dpagg.NewBoundedSumInt64(opts),
 		agentCount:       agentsCount,
 		agentCountActual: make(map[string]int),
-		//configCount: FIXME(kit),
+		configCount:      configCount,
 	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/submit", &submitHandler{store: store})
 	mux.Handle("/agent/sum", &agentSumHandler{store: store})
 	mux.Handle("/agent/count", &agentCountHandler{store: store})
+	mux.Handle("/config/count", &configCountHandler{store: store})
 
 	srv := &http.Server{
 		// Addr:         fmt.Sprintf("%s:%d", address, port),
@@ -117,8 +124,9 @@ func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			"err": err.Error(),
 		})
 	}
+	h.store.lock.Lock()
+	defer h.store.lock.Unlock()
 	h.store.agentSum.Merge(serverAgents)
-
 	h.store.agentSumActual += body.AgentsActual
 
 	// agents count
@@ -138,6 +146,26 @@ func (h *submitHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.store.bucketAgentsCountActual(body.AgentsActual)
+
+	// config count
+	for k, configCount := range body.ConfigCount {
+		configCountOpts := &dpagg.CountOptions{
+			Epsilon:                  epsilon,
+			MaxPartitionsContributed: 2,
+			Noise:                    noise.Laplace(),
+		}
+		config := dpagg.NewCount(configCountOpts)
+		if err := config.GobDecode(configCount); err != nil {
+			jsonResponse(w, http.StatusBadRequest, map[string]string{
+				"err": err.Error(),
+			})
+		}
+		// If we don't have a count yet, initialize one
+		if h.store.configCount[k] == nil {
+			h.store.configCount[k] = dpagg.NewCount(configCountOpts)
+		}
+		h.store.configCount[k].Merge(config)
+	}
 
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -180,16 +208,11 @@ type agentCountHandler struct {
 func (h *agentCountHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO: Bound contributions clientside w/ dpagg.PreAggSelectPartition
 
-	// fmt.Println(h.store.agentCountActual["0-10"], "0-10 (Actual)")
-	// fmt.Println(h.store.agentCount["0-10"].Result(), "0-10 (Private)")
-	// fmt.Println(h.store.agentCountActual["11-100"], "11-100 (Actual)")
-	// fmt.Println(h.store.agentCount["11-100"].Result(), "11-100 (Private)")
-	// fmt.Println(h.store.agentCountActual["101-1000"], "101-1000 (Actual)")
-	// fmt.Println(h.store.agentCount["101-1000"].Result(), "101-1000 (Private)")
-	// fmt.Println(h.store.agentCountActual["1001-10000"], "1001-10000 (Actual)")
-	// fmt.Println(h.store.agentCount["1001-10000"].Result(), "1001-10000 (Private)")
-	// fmt.Println(h.store.agentCountActual["10000+"], "10000+ (Actual)")
-	// fmt.Println(h.store.agentCount["10000+"].Result(), "10000+ (Private)")
+	p0 := h.store.agentCount["0-10"].Result()
+	p11 := h.store.agentCount["11-100"].Result()
+	p101 := h.store.agentCount["101-1000"].Result()
+	p1001 := h.store.agentCount["1001-10000"].Result()
+	p10000 := h.store.agentCount["10000+"].Result()
 
 	privateGraph := chart.BarChart{
 		Title: "Agent Count Histogram (Private)",
@@ -201,11 +224,11 @@ func (h *agentCountHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Height:   512,
 		BarWidth: 60,
 		Bars: []chart.Value{
-			{Value: float64(h.store.agentCount["0-10"].Result()), Label: "0-10"},
-			{Value: float64(h.store.agentCount["11-100"].Result()), Label: "11-100"},
-			{Value: float64(h.store.agentCount["101-1000"].Result()), Label: "101-1000"},
-			{Value: float64(h.store.agentCount["1001-10000"].Result()), Label: "1001-10000"},
-			{Value: float64(h.store.agentCount["10000+"].Result()), Label: "10000+"},
+			{Value: float64(p0), Label: fmt.Sprintf("0-10 (Count: %d)", p0)},
+			{Value: float64(p11), Label: fmt.Sprintf("11-100 (Count: %d)", p11)},
+			{Value: float64(p101), Label: fmt.Sprintf("101-1000 (Count: %d)", p101)},
+			{Value: float64(p1001), Label: fmt.Sprintf("1001-10000 (Count: %d)", p1001)},
+			{Value: float64(p10000), Label: fmt.Sprintf("10000+ (Count: %d)", p10000)},
 		},
 	}
 
@@ -223,11 +246,11 @@ func (h *agentCountHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Height:   512,
 		BarWidth: 60,
 		Bars: []chart.Value{
-			{Value: float64(h.store.agentCountActual["0-10"]), Label: "0-10"},
-			{Value: float64(h.store.agentCountActual["11-100"]), Label: "11-100"},
-			{Value: float64(h.store.agentCountActual["101-1000"]), Label: "101-1000"},
-			{Value: float64(h.store.agentCountActual["1001-10000"]), Label: "1001-10000"},
-			{Value: float64(h.store.agentCountActual["10000+"]), Label: "10000+"},
+			{Value: float64(h.store.agentCountActual["0-10"]), Label: fmt.Sprintf("0-10 (Count: %d)", h.store.agentCountActual["0-10"])},
+			{Value: float64(h.store.agentCountActual["11-100"]), Label: fmt.Sprintf("11-100 (Count: %d)", h.store.agentCountActual["11-100"])},
+			{Value: float64(h.store.agentCountActual["101-1000"]), Label: fmt.Sprintf("101-1000 (Count: %d)", h.store.agentCountActual["101-1000"])},
+			{Value: float64(h.store.agentCountActual["1001-10000"]), Label: fmt.Sprintf("1001-10000 (Count: %d)", h.store.agentCountActual["1001-10000"])},
+			{Value: float64(h.store.agentCountActual["10000+"]), Label: fmt.Sprintf("10000+ (Count: %d)", h.store.agentCountActual["10000+"])},
 		},
 	}
 
@@ -243,10 +266,52 @@ func (h *agentCountHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func jsonResponse(w http.ResponseWriter, code int, response interface{}) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(response); err != nil {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("","    ")
+	if err := encoder.Encode(response); err != nil {
 		// at this point, we've tried to return the error. log it out for now
 		// and still send the status code
 		fmt.Printf("error encoding status '%d' with response '%s': %s",
 			code, response, err)
 	}
+}
+
+type configCountHandler struct {
+	store *store
+}
+
+// TODO: Bound contributions clientside w/ dpagg.PreAggSelectPartition
+func (h *configCountHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Store our results
+	results := make(map[string]int64)
+	for k, v := range h.store.configCount {
+		results[k] = v.Result()
+	}
+	// Sort by value
+	pl := make(PairList, len(results))
+	i := 0
+	for k, v := range results {
+		pl[i] = Pair{k, v}
+		i++
+	}
+	sort.Sort(sort.Reverse(pl))
+	jsonResponse(w, http.StatusOK, pl)
+}
+
+type Pair struct {
+	Key   string
+	Value int64
+}
+type PairList []Pair
+
+func (p PairList) Len() int {
+	return len(p)
+}
+
+func (p PairList) Less(i, j int) bool {
+	return p[i].Value < p[j].Value
+}
+
+func (p PairList) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
 }

@@ -14,6 +14,7 @@ import (
 const address = "localhost"
 const port = 8080
 
+// ~ 390 config fields
 var consulConfigFields = []string{
 	"acl_agent_token",
 	"acl_datacenter",

@@ -2,8 +2,10 @@ package checkpoint
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 )
@@ -13,15 +15,29 @@ func TestTheFnCalledMain(t *testing.T) {
 
 	go ServeDiffPriv()
 	runs := 10000
-	for i := 0; i < runs; i++ {
-		SimulateClientDonations()
+	groups := 20
+	wg := sync.WaitGroup{}
+	wg.Add(groups)
+	for i := 0; i < groups; i++ {
+		go func() {
+			defer wg.Done()
+			for j := 0; j < runs / groups; j++ {
+				if err := SimulateClientDonations(); err != nil {
+					fmt.Printf("Simulation failed!? :O")
+				}
+			}
+		}()
 	}
+	wg.Wait()
 
 	// Retrieve results
 	if err := Get("/agent/sum"); err != nil {
 		fmt.Println(err)
 	}
 	if err := Get("/agent/count"); err != nil {
+		fmt.Println(err)
+	}
+	if err := Get("/config/count"); err != nil {
 		fmt.Println(err)
 	}
 }
@@ -43,22 +59,10 @@ func Get(path string) error {
 			u, resp.StatusCode)
 	}
 
+	res, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(res))
 	return nil
 }
-
-// func TestDifferentialPrivacy(t *testing.T) {
-// 	runs := 10
-// 	results := make([]string, runs)
-// 	wg := &sync.WaitGroup{}
-// 	wg.Add(runs)
-// 	for i := 0; i < runs; i++ {
-// 		go func(i int) {
-// 			defer wg.Done()
-// 			res := main()
-// 			results[i] = res
-// 		}(i)
-// 	}
-// 	wg.Wait()
-//
-// 	t.Logf("%+v", results)
-// }
