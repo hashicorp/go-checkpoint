@@ -294,7 +294,7 @@ func (h *configCountHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		pl[i] = Pair{k, v}
 		i++
 	}
-	sort.Sort(sort.Reverse(pl))
+	sort.Sort(pl)
 	jsonResponse(w, http.StatusOK, pl)
 }
 

@@ -25,7 +25,7 @@ func differentialPrivacyPOC(epsilon float64) (int64, error){
 	// Serial decode and aggregate
 	// note(kit): this would probably be faster with a chunking parallel sum, but a naive impl. with 1 goroutine per
 	//  contribution was slower
-	var aggSum int64 // Atomic access *only*
+	var aggSum int64
 	for _, cont := range contributions {
 		serverSum := dpagg.NewBoundedSumInt64(&dpagg.BoundedSumInt64Options{
 			Epsilon: epsilon,
