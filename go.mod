@@ -1,4 +1,4 @@
-module github.com/hashicorp/go-checkpoint
+module github.com/i4ki/go-checkpoint
 
 require (
 	github.com/hashicorp/go-cleanhttp v0.5.0
