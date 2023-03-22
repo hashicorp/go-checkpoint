@@ -53,7 +53,7 @@ func Versions(p *VersionsParams) (*VersionsResponse, error) {
 
 	u := &url.URL{
 		Scheme:   "https",
-		Host:     "checkpoint-api.hashicorp.com",
+		Host:     DefaultHost,
 		Path:     fmt.Sprintf("/v1/versions/%s", p.Service),
 		RawQuery: v.Encode(),
 	}

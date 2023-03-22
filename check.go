@@ -138,7 +138,7 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	v.Set("signature", signature)
 
 	u.Scheme = "https"
-	u.Host = "checkpoint-api.hashicorp.com"
+	u.Host = DefaultHost
 	u.Path = fmt.Sprintf("/v1/check/%s", p.Product)
 	u.RawQuery = v.Encode()
 
