@@ -94,6 +94,10 @@ type CheckAlert struct {
 
 // Check checks for alerts and new version information.
 func Check(p *CheckParams) (*CheckResponse, error) {
+	return CheckAt(defaultEndpoint(), p)
+}
+
+func CheckAt(endpoint url.URL, p *CheckParams) (*CheckResponse, error) {
 	if disabled := os.Getenv("CHECKPOINT_DISABLE"); disabled != "" && !p.Force {
 		return &CheckResponse{}, nil
 	}
@@ -112,8 +116,6 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 		return checkResult(r)
 	}
 
-	var u url.URL
-
 	if p.Arch == "" {
 		p.Arch = runtime.GOARCH
 	}
@@ -131,18 +133,16 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 		}
 	}
 
-	v := u.Query()
+	v := endpoint.Query()
 	v.Set("version", p.Version)
 	v.Set("arch", p.Arch)
 	v.Set("os", p.OS)
 	v.Set("signature", signature)
 
-	u.Scheme = "https"
-	u.Host = "checkpoint-api.hashicorp.com"
-	u.Path = fmt.Sprintf("/v1/check/%s", p.Product)
-	u.RawQuery = v.Encode()
+	endpoint.Path = fmt.Sprintf("/v1/check/%s", p.Product)
+	endpoint.RawQuery = v.Encode()
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequest("GET", endpoint.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +162,7 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Unknown status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unknown status: %d", resp.StatusCode)
 	}
 
 	var r io.Reader = resp.Body
@@ -198,8 +198,11 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 // herd. However, it is expected that on average one check is performed per
 // interval. The returned channel may be closed to stop background checks.
 func CheckInterval(p *CheckParams, interval time.Duration, cb func(*CheckResponse, error)) chan struct{} {
-	doneCh := make(chan struct{})
+	return CheckIntervalAt(defaultEndpoint(), p, interval, cb)
+}
 
+func CheckIntervalAt(endpoint url.URL, p *CheckParams, interval time.Duration, cb func(*CheckResponse, error)) chan struct{} {
+	doneCh := make(chan struct{})
 	if disabled := os.Getenv("CHECKPOINT_DISABLE"); disabled != "" {
 		return doneCh
 	}
@@ -208,7 +211,7 @@ func CheckInterval(p *CheckParams, interval time.Duration, cb func(*CheckRespons
 		for {
 			select {
 			case <-time.After(randomStagger(interval)):
-				resp, err := Check(p)
+				resp, err := CheckAt(endpoint, p)
 				cb(resp, err)
 			case <-doneCh:
 				return
@@ -355,6 +358,14 @@ func writeCacheHeader(f io.Writer, v string) error {
 
 	_, err := f.Write([]byte(v))
 	return err
+}
+
+func defaultEndpoint() url.URL {
+	var u url.URL
+	u.Scheme = "https"
+	u.Host = DefaultHost
+	u.Path = DefaultBasePath
+	return u
 }
 
 // userMessage is suffixed to the signature file to provide feedback.

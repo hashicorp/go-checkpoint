@@ -1,13 +1,20 @@
 package checkpoint
 
 import (
+	"encoding/json"
 	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/madlambda/spells/assert"
 )
 
 func TestCheck(t *testing.T) {
@@ -22,7 +29,22 @@ func TestCheck(t *testing.T) {
 		Alerts:              []*CheckAlert{},
 	}
 
-	actual, err := Check(&CheckParams{
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		assert.EqualStrings(t, "/v1/check/test", r.URL.Path)
+		assert.EqualStrings(t, "1.0", params.Get("version"))
+		assert.EqualStrings(t, runtime.GOARCH, params.Get("arch"))
+		assert.EqualStrings(t, runtime.GOOS, params.Get("os"))
+		assert.EqualStrings(t, "", params.Get("signature"))
+
+		retdata, err := json.Marshal(expected)
+		assert.NoError(t, err)
+		w.Write(retdata)
+	}))
+
+	endpoint, err := url.Parse(server.URL)
+	assert.NoError(t, err)
+	actual, err := CheckAt(*endpoint, &CheckParams{
 		Product: "test",
 		Version: "1.0",
 	})
@@ -41,7 +63,21 @@ func TestCheck_timeout(t *testing.T) {
 
 	expected := "Client.Timeout exceeded while awaiting headers"
 
-	_, err := Check(&CheckParams{
+	slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		assert.EqualStrings(t, "/v1/check/test", r.URL.Path)
+		assert.EqualStrings(t, "1.0", params.Get("version"))
+		assert.EqualStrings(t, runtime.GOARCH, params.Get("arch"))
+		assert.EqualStrings(t, runtime.GOOS, params.Get("os"))
+		assert.EqualStrings(t, "", params.Get("signature"))
+
+		time.Sleep(1 * time.Minute)
+	}))
+
+	endpoint, err := url.Parse(slowServer.URL)
+	assert.NoError(t, err)
+
+	_, err = CheckAt(*endpoint, &CheckParams{
 		Product: "test",
 		Version: "1.0",
 	})
@@ -87,10 +123,26 @@ func TestCheck_cache(t *testing.T) {
 		Alerts:              []*CheckAlert{},
 	}
 
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		assert.EqualStrings(t, "/v1/check/test", r.URL.Path)
+		assert.EqualStrings(t, "1.0", params.Get("version"))
+		assert.EqualStrings(t, runtime.GOARCH, params.Get("arch"))
+		assert.EqualStrings(t, runtime.GOOS, params.Get("os"))
+		assert.EqualStrings(t, "", params.Get("signature"))
+
+		retdata, err := json.Marshal(expected)
+		assert.NoError(t, err)
+		w.Write(retdata)
+	}))
+
+	endpoint, err := url.Parse(server.URL)
+	assert.NoError(t, err)
+
 	var actual *CheckResponse
 	for i := 0; i < 5; i++ {
 		var err error
-		actual, err = Check(&CheckParams{
+		actual, err = CheckAt(*endpoint, &CheckParams{
 			Product:   "test",
 			Version:   "1.0",
 			CacheFile: filepath.Join(dir, "cache"),
@@ -122,10 +174,26 @@ func TestCheck_cacheNested(t *testing.T) {
 		Alerts:              []*CheckAlert{},
 	}
 
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		assert.EqualStrings(t, "/v1/check/test", r.URL.Path)
+		assert.EqualStrings(t, "1.0", params.Get("version"))
+		assert.EqualStrings(t, runtime.GOARCH, params.Get("arch"))
+		assert.EqualStrings(t, runtime.GOOS, params.Get("os"))
+		assert.EqualStrings(t, "", params.Get("signature"))
+
+		retdata, err := json.Marshal(expected)
+		assert.NoError(t, err)
+		w.Write(retdata)
+	}))
+
+	endpoint, err := url.Parse(server.URL)
+	assert.NoError(t, err)
+
 	var actual *CheckResponse
 	for i := 0; i < 5; i++ {
 		var err error
-		actual, err = Check(&CheckParams{
+		actual, err = CheckAt(*endpoint, &CheckParams{
 			Product:   "test",
 			Version:   "1.0",
 			CacheFile: filepath.Join(dir, "nested", "cache"),
@@ -152,6 +220,22 @@ func TestCheckInterval(t *testing.T) {
 		Alerts:              []*CheckAlert{},
 	}
 
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		params := r.URL.Query()
+		assert.EqualStrings(t, "/v1/check/test", r.URL.Path)
+		assert.EqualStrings(t, "1.0", params.Get("version"))
+		assert.EqualStrings(t, runtime.GOARCH, params.Get("arch"))
+		assert.EqualStrings(t, runtime.GOOS, params.Get("os"))
+		assert.EqualStrings(t, "", params.Get("signature"))
+
+		retdata, err := json.Marshal(expected)
+		assert.NoError(t, err)
+		w.Write(retdata)
+	}))
+
+	endpoint, err := url.Parse(server.URL)
+	assert.NoError(t, err)
+
 	params := &CheckParams{
 		Product: "test",
 		Version: "1.0",
@@ -169,7 +253,7 @@ func TestCheckInterval(t *testing.T) {
 		}
 	}
 
-	doneCh := CheckInterval(params, 500*time.Millisecond, checkFn)
+	doneCh := CheckIntervalAt(*endpoint, params, 500*time.Millisecond, checkFn)
 	defer close(doneCh)
 
 	select {
