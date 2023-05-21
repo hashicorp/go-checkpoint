@@ -1,4 +1,4 @@
-module github.com/i4ki/go-checkpoint
+module github.com/terramate-io/go-checkpoint
 
 go 1.19
 
