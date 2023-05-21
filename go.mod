@@ -7,4 +7,4 @@ require (
 	github.com/hashicorp/go-uuid v1.0.0
 )
 
-require github.com/madlambda/spells v0.4.2 // indirect
+require github.com/madlambda/spells v0.4.2
