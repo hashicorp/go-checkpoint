@@ -103,7 +103,7 @@ func ReportRequest(r *ReportParams) (*http.Request, error) {
 
 	u := &url.URL{
 		Scheme: "https",
-		Host:   "checkpoint-api.hashicorp.com",
+		Host:   DefaultHost,
 		Path:   fmt.Sprintf("/v1/telemetry/%s", r.Product),
 	}
 
