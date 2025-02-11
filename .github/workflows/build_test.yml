@@ -24,7 +24,7 @@ jobs:
               with:
                 name: Coverage-Report
                 path: coverage.out
-            - name: Diaplay the Coverage Result
+            - name: Display the Coverage Result
               run: go tool cover -func=coverage.out
             - name: Build Go
               run: go build ./...
