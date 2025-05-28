@@ -13,12 +13,12 @@ import (
 func TestCheck(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
@@ -78,12 +78,12 @@ func TestCheck_cache(t *testing.T) {
 
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
@@ -113,12 +113,12 @@ func TestCheck_cacheNested(t *testing.T) {
 
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
@@ -143,12 +143,12 @@ func TestCheck_cacheNested(t *testing.T) {
 func TestCheckInterval(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
