@@ -1,7 +1,6 @@
 package checkpoint
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -71,7 +70,7 @@ func TestCheck_disabled(t *testing.T) {
 }
 
 func TestCheck_cache(t *testing.T) {
-	dir, err := ioutil.TempDir("", "checkpoint")
+	dir, err := os.MkdirTemp("", "checkpoint")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -106,7 +105,7 @@ func TestCheck_cache(t *testing.T) {
 }
 
 func TestCheck_cacheNested(t *testing.T) {
-	dir, err := ioutil.TempDir("", "checkpoint")
+	dir, err := os.MkdirTemp("", "checkpoint")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
