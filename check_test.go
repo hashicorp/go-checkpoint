@@ -1,7 +1,6 @@
 package checkpoint
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,12 +12,12 @@ import (
 func TestCheck(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
@@ -71,19 +70,19 @@ func TestCheck_disabled(t *testing.T) {
 }
 
 func TestCheck_cache(t *testing.T) {
-	dir, err := ioutil.TempDir("", "checkpoint")
+	dir, err := os.MkdirTemp("", "checkpoint")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
@@ -106,19 +105,19 @@ func TestCheck_cache(t *testing.T) {
 }
 
 func TestCheck_cacheNested(t *testing.T) {
-	dir, err := ioutil.TempDir("", "checkpoint")
+	dir, err := os.MkdirTemp("", "checkpoint")
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
@@ -143,12 +142,12 @@ func TestCheck_cacheNested(t *testing.T) {
 func TestCheckInterval(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
-		CurrentVersion:      "1.0",
+		CurrentVersion:      "1.0.2",
 		CurrentReleaseDate:  0,
-		CurrentDownloadURL:  "http://www.hashicorp.com",
-		CurrentChangelogURL: "http://www.hashicorp.com",
+		CurrentDownloadURL:  "http://www.hashicorp.com/",
+		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
-		Outdated:            false,
+		Outdated:            true,
 		Alerts:              []*CheckAlert{},
 	}
 
