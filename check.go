@@ -65,6 +65,8 @@ type CheckParams struct {
 	// specifically requests it. This is never automatically done without
 	// the user's consent.
 	Force bool
+	// HTTPClient allows injecting a custom HTTP client (for testing).
+	HTTPClient *http.Client `json:"-"`
 }
 
 // CheckResponse is the response for a check request.
@@ -107,7 +109,11 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	if r, err := checkCache(p.Version, p.CacheFile, p.CacheDuration); err != nil {
 		return nil, err
 	} else if r != nil {
-		defer r.Close()
+		defer func() {
+			if err := r.Close(); err != nil {
+				// Optionally log the error, or handle as needed
+			}
+		}()
 		return checkResult(r)
 	}
 
@@ -148,8 +154,10 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "HashiCorp/go-checkpoint")
 
-	client := cleanhttp.DefaultClient()
-
+	client := p.HTTPClient
+	if client == nil {
+		client = cleanhttp.DefaultClient()
+	}
 	// We use a short timeout since checking for new versions is not critical
 	// enough to block on if checkpoint is broken/slow.
 	client.Timeout = time.Duration(timeout) * time.Millisecond
@@ -161,7 +169,7 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Unknown status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("unknown status: %d", resp.StatusCode)
 	}
 
 	var r io.Reader = resp.Body
