@@ -34,8 +34,14 @@ func TestVersions(t *testing.T) {
 func TestVersions_timeout(t *testing.T) {
 	t.Skip("endpoint does not exist yet")
 
-	os.Setenv("CHECKPOINT_TIMEOUT", "50")
-	defer os.Setenv("CHECKPOINT_TIMEOUT", "")
+	if err := os.Setenv("CHECKPOINT_TIMEOUT", "50"); err != nil {
+		t.Fatalf("failed to set env: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("CHECKPOINT_TIMEOUT", ""); err != nil {
+			t.Fatalf("failed to reset env: %v", err)
+		}
+	}()
 
 	expected := "Client.Timeout exceeded while awaiting headers"
 
@@ -52,8 +58,14 @@ func TestVersions_timeout(t *testing.T) {
 func TestVersions_disabled(t *testing.T) {
 	t.Skip("endpoint does not exist yet")
 
-	os.Setenv("CHECKPOINT_DISABLE", "1")
-	defer os.Setenv("CHECKPOINT_DISABLE", "")
+	if err := os.Setenv("CHECKPOINT_DISABLE", "1"); err != nil {
+		t.Fatalf("failed to set env: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("CHECKPOINT_DISABLE", ""); err != nil {
+			t.Fatalf("failed to reset env: %v", err)
+		}
+	}()
 
 	expected := &CheckResponse{}
 

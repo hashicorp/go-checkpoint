@@ -56,8 +56,14 @@ func TestCheck(t *testing.T) {
 }
 
 func TestCheck_timeout(t *testing.T) {
-	os.Setenv("CHECKPOINT_TIMEOUT", "50")
-	defer os.Setenv("CHECKPOINT_TIMEOUT", "")
+	if err := os.Setenv("CHECKPOINT_TIMEOUT", "50"); err != nil {
+		t.Fatalf("failed to set env: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("CHECKPOINT_TIMEOUT", ""); err != nil {
+			t.Fatalf("failed to reset env: %v", err)
+		}
+	}()
 
 	expected := "Client.Timeout exceeded while awaiting headers"
 
@@ -72,8 +78,14 @@ func TestCheck_timeout(t *testing.T) {
 }
 
 func TestCheck_disabled(t *testing.T) {
-	os.Setenv("CHECKPOINT_DISABLE", "1")
-	defer os.Setenv("CHECKPOINT_DISABLE", "")
+	if err := os.Setenv("CHECKPOINT_DISABLE", "1"); err != nil {
+		t.Fatalf("failed to set env: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("CHECKPOINT_DISABLE", ""); err != nil {
+			t.Fatalf("failed to reset env: %v", err)
+		}
+	}()
 
 	expected := &CheckResponse{}
 
@@ -244,8 +256,14 @@ func TestCheckInterval(t *testing.T) {
 }
 
 func TestCheckInterval_disabled(t *testing.T) {
-	os.Setenv("CHECKPOINT_DISABLE", "1")
-	defer os.Setenv("CHECKPOINT_DISABLE", "")
+	if err := os.Setenv("CHECKPOINT_DISABLE", "1"); err != nil {
+		t.Fatalf("failed to set env: %v", err)
+	}
+	defer func() {
+		if err := os.Setenv("CHECKPOINT_DISABLE", ""); err != nil {
+			t.Fatalf("failed to reset env: %v", err)
+		}
+	}()
 
 	params := &CheckParams{
 		Product: "test",

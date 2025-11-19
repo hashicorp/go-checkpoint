@@ -110,9 +110,7 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 		return nil, err
 	} else if r != nil {
 		defer func() {
-			if err := r.Close(); err != nil {
-				// Optionally log the error, or handle as needed
-			}
+			_ = r.Close()
 		}()
 		return checkResult(r)
 	}
@@ -166,7 +164,9 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("unknown status: %d", resp.StatusCode)
@@ -188,12 +188,14 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 
 		// Write the cache header
 		if err := writeCacheHeader(f, p.Version); err != nil {
-			f.Close()
-			os.Remove(p.CacheFile)
+			_ = f.Close()
+			_ = os.Remove(p.CacheFile)
 			return nil, err
 		}
 
-		defer f.Close()
+		defer func() {
+			_ = f.Close()
+		}()
 		r = io.TeeReader(r, f)
 	}
 
@@ -251,7 +253,7 @@ func checkCache(current string, path string, d time.Duration) (io.ReadCloser, er
 	if fi.ModTime().Add(d).Before(time.Now()) {
 		// Cache is busted, delete the old file and re-request. We ignore
 		// errors here because re-creating the file is fine too.
-		os.Remove(path)
+		_ = os.Remove(path)
 		return nil, nil
 	}
 
@@ -264,29 +266,29 @@ func checkCache(current string, path string, d time.Duration) (io.ReadCloser, er
 	// Check the signature of the file
 	var sig [4]byte
 	if err := binary.Read(f, binary.LittleEndian, sig[:]); err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, err
 	}
 	if !reflect.DeepEqual(sig, magicBytes) {
 		// Signatures don't match. Reset.
-		f.Close()
+		_ = f.Close()
 		return nil, nil
 	}
 
 	// Check the version. If it changed, then rewrite
 	var length uint32
 	if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, err
 	}
 	data := make([]byte, length)
 	if _, err := io.ReadFull(f, data); err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, err
 	}
 	if string(data) != current {
 		// Version changed, reset
-		f.Close()
+		_ = f.Close()
 		return nil, nil
 	}
 
