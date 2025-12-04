@@ -11,11 +11,12 @@ import (
 	"time"
 )
 
-// roundTripFunc type allows us to easily mock http.RoundTripper
+// roundTripFunc lets us create a custom function to handle HTTP requests, making it easy 
+// to mock network responses in tests by implementing the http.RoundTripper interface.
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
+func (rtf roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return rtf(req)
 }
 
 func TestCheck(t *testing.T) {
@@ -31,7 +32,16 @@ func TestCheck(t *testing.T) {
 	}
 
 	// Mock HTTP client to return the expected response
-	mockResp := `{"product":"test","current_version":"1.0.2","current_release_date":0,"current_download_url":"http://www.hashicorp.com/","current_changelog_url":"http://www.hashicorp.com/","project_website":"http://www.hashicorp.com","outdated":true,"alerts":[]}`
+	mockResp := `{
+		"product": "test",
+		"current_version": "1.0.2",
+		"current_release_date": 0,
+		"current_download_url": "http://www.hashicorp.com/",
+		"current_changelog_url": "http://www.hashicorp.com/",
+		"project_website": "http://www.hashicorp.com",
+		"outdated": true,
+		"alerts": []
+	}`
 	mockClient := &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -120,7 +130,16 @@ func TestCheck_cache(t *testing.T) {
 	}
 
 	// Mock HTTP client to return the expected response
-	mockResp := `{"product":"test","current_version":"1.0.2","current_release_date":0,"current_download_url":"http://www.hashicorp.com/","current_changelog_url":"http://www.hashicorp.com/","project_website":"http://www.hashicorp.com","outdated":true,"alerts":[]}`
+	mockResp := `{
+		"product": "test",
+		"current_version": "1.0.2",
+		"current_release_date": 0,
+		"current_download_url": "http://www.hashicorp.com/",
+		"current_changelog_url": "http://www.hashicorp.com/",
+		"project_website": "http://www.hashicorp.com",
+		"outdated": true,
+		"alerts": []
+	}`
 	mockClient := &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -167,7 +186,16 @@ func TestCheck_cacheNested(t *testing.T) {
 	}
 
 	// Mock HTTP client to return the expected response
-	mockResp := `{"product":"test","current_version":"1.0.2","current_release_date":0,"current_download_url":"http://www.hashicorp.com/","current_changelog_url":"http://www.hashicorp.com/","project_website":"http://www.hashicorp.com","outdated":true,"alerts":[]}`
+	mockResp := `{
+		"product": "test",
+		"current_version": "1.0.2",
+		"current_release_date": 0,
+		"current_download_url": "http://www.hashicorp.com/",
+		"current_changelog_url": "http://www.hashicorp.com/",
+		"project_website": "http://www.hashicorp.com",
+		"outdated": true,
+		"alerts": []
+	}`
 	mockClient := &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -214,7 +242,16 @@ func TestCheckInterval(t *testing.T) {
 	}
 
 	// Mock HTTP client to return the expected response
-	mockResp := `{"product":"test","current_version":"1.0.2","current_release_date":0,"current_download_url":"http://www.hashicorp.com/","current_changelog_url":"http://www.hashicorp.com/","project_website":"http://www.hashicorp.com","outdated":true,"alerts":[]}`
+	mockResp := `{
+		"product": "test",
+		"current_version": "1.0.2",
+		"current_release_date": 0,
+		"current_download_url": "http://www.hashicorp.com/",
+		"current_changelog_url": "http://www.hashicorp.com/",
+		"project_website": "http://www.hashicorp.com",
+		"outdated": true,
+		"alerts": []
+	}`
 	mockClient := &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -227,6 +264,8 @@ func TestCheckInterval(t *testing.T) {
 
 	calledCh := make(chan struct{})
 	checkFn := func(actual *CheckResponse, err error) {
+		// We check if calledCh is already closed before closing it to avoid a panic from 
+		// double-closing the channel.
 		defer func() {
 			select {
 			case <-calledCh:
