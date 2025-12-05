@@ -19,7 +19,11 @@ func TestReport_sendsRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer req.Body.Close()
+	defer func() {
+		if err := req.Body.Close(); err != nil {
+			t.Fatalf("failed to close req.Body: %v", err)
+		}
+	}()
 
 	if !strings.HasSuffix(req.URL.Path, "/telemetry/prod") {
 		t.Fatalf("expected url to include the product, got %s", req.URL.String())
