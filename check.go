@@ -169,7 +169,7 @@ func Check(p *CheckParams) (*CheckResponse, error) {
 	}()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unknown status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("Unknown status: %d", resp.StatusCode)
 	}
 
 	var r io.Reader = resp.Body

@@ -80,7 +80,7 @@ func Versions(p *VersionsParams) (*VersionsResponse, error) {
 	}()
 
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("unknown status: %d", resp.StatusCode)
+		return nil, fmt.Errorf("Unknown status: %d", resp.StatusCode)
 	}
 
 	result := &VersionsResponse{}
