@@ -10,17 +10,17 @@ jobs:
 
         steps:
             - name: Checkout Code
-              uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+              uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
             - name: Setup Go
-              uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a
+              uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
               with:
                 go-version: '1.23'
             - name: Running golangci-lint
-              uses: golangci/golangci-lint-action@08e2f20817b15149a52b5b3ebe7de50aff2ba8c5
+              uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20
             - name: Run tests and generate coverage result
               run: go test -v ./... -coverprofile=coverage.out
             - name: Upload Test Coverage Results
-              uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+              uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
               with:
                 name: Coverage-Report
                 path: coverage.out
