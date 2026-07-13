@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2014, 2025
+// Copyright IBM Corp. 2014, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package checkpoint
@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// roundTripFunc lets us create a custom function to handle HTTP requests, making it easy 
+// roundTripFunc lets us create a custom function to handle HTTP requests, making it easy
 // to mock network responses in tests by implementing the http.RoundTripper interface.
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
@@ -26,7 +26,7 @@ func TestCheck(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
 		CurrentVersion:      "1.0.2",
-		CurrentReleaseDate:  0,
+		CurrentReleaseDate:  1603462385,
 		CurrentDownloadURL:  "http://www.hashicorp.com/",
 		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
@@ -38,7 +38,7 @@ func TestCheck(t *testing.T) {
 	mockResp := `{
 		"product": "test",
 		"current_version": "1.0.2",
-		"current_release_date": 0,
+		"current_release": 1603462385,
 		"current_download_url": "http://www.hashicorp.com/",
 		"current_changelog_url": "http://www.hashicorp.com/",
 		"project_website": "http://www.hashicorp.com",
@@ -124,7 +124,7 @@ func TestCheck_cache(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
 		CurrentVersion:      "1.0.2",
-		CurrentReleaseDate:  0,
+		CurrentReleaseDate:  1603462385,
 		CurrentDownloadURL:  "http://www.hashicorp.com/",
 		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
@@ -136,7 +136,7 @@ func TestCheck_cache(t *testing.T) {
 	mockResp := `{
 		"product": "test",
 		"current_version": "1.0.2",
-		"current_release_date": 0,
+		"current_release": 1603462385,
 		"current_download_url": "http://www.hashicorp.com/",
 		"current_changelog_url": "http://www.hashicorp.com/",
 		"project_website": "http://www.hashicorp.com",
@@ -180,7 +180,7 @@ func TestCheck_cacheNested(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
 		CurrentVersion:      "1.0.2",
-		CurrentReleaseDate:  0,
+		CurrentReleaseDate:  1603462385,
 		CurrentDownloadURL:  "http://www.hashicorp.com/",
 		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
@@ -192,7 +192,7 @@ func TestCheck_cacheNested(t *testing.T) {
 	mockResp := `{
 		"product": "test",
 		"current_version": "1.0.2",
-		"current_release_date": 0,
+		"current_release": 1603462385,
 		"current_download_url": "http://www.hashicorp.com/",
 		"current_changelog_url": "http://www.hashicorp.com/",
 		"project_website": "http://www.hashicorp.com",
@@ -231,7 +231,7 @@ func TestCheckInterval(t *testing.T) {
 	expected := &CheckResponse{
 		Product:             "test",
 		CurrentVersion:      "1.0.2",
-		CurrentReleaseDate:  0,
+		CurrentReleaseDate:  1603462385,
 		CurrentDownloadURL:  "http://www.hashicorp.com/",
 		CurrentChangelogURL: "http://www.hashicorp.com/",
 		ProjectWebsite:      "http://www.hashicorp.com",
@@ -248,7 +248,7 @@ func TestCheckInterval(t *testing.T) {
 	mockResp := `{
 		"product": "test",
 		"current_version": "1.0.2",
-		"current_release_date": 0,
+		"current_release": 1603462385,
 		"current_download_url": "http://www.hashicorp.com/",
 		"current_changelog_url": "http://www.hashicorp.com/",
 		"project_website": "http://www.hashicorp.com",
@@ -267,7 +267,7 @@ func TestCheckInterval(t *testing.T) {
 
 	calledCh := make(chan struct{})
 	checkFn := func(actual *CheckResponse, err error) {
-		// We check if calledCh is already closed before closing it to avoid a panic from 
+		// We check if calledCh is already closed before closing it to avoid a panic from
 		// double-closing the channel.
 		defer func() {
 			select {

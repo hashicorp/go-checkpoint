@@ -1,4 +1,4 @@
-// Copyright IBM Corp. 2014, 2025
+// Copyright IBM Corp. 2014, 2026
 // SPDX-License-Identifier: MPL-2.0
 
 package checkpoint
@@ -76,7 +76,7 @@ type CheckParams struct {
 type CheckResponse struct {
 	Product             string        `json:"product"`
 	CurrentVersion      string        `json:"current_version"`
-	CurrentReleaseDate  int           `json:"current_release_date"`
+	CurrentReleaseDate  int           `json:"current_release"`
 	CurrentDownloadURL  string        `json:"current_download_url"`
 	CurrentChangelogURL string        `json:"current_changelog_url"`
 	ProjectWebsite      string        `json:"project_website"`
