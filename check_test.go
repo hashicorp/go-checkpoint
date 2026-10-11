@@ -4,6 +4,8 @@
 package checkpoint
 
 import (
+	"bytes"
+	"encoding/binary"
 	"io"
 	"net/http"
 	"os"
@@ -224,6 +226,84 @@ func TestCheck_cacheNested(t *testing.T) {
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("expected %#v, got: %#v", expected, actual)
+	}
+}
+
+func TestCheck_truncatedCache(t *testing.T) {
+	dir, err := os.MkdirTemp("", "checkpoint")
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	mockResp := `{
+		"product": "test",
+		"current_version": "1.0.2",
+		"current_release": 1603462385,
+		"current_download_url": "http://www.hashicorp.com/",
+		"current_changelog_url": "http://www.hashicorp.com/",
+		"project_website": "http://www.hashicorp.com",
+		"outdated": true,
+		"alerts": []
+	}`
+	hits := 0
+	mockClient := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			hits++
+			return &http.Response{
+				StatusCode: 200,
+				Body:       io.NopCloser(strings.NewReader(mockResp)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	write := func(path string, length uint32, payload string) {
+		t.Helper()
+		var buf bytes.Buffer
+		if err := binary.Write(&buf, binary.LittleEndian, magicBytes); err != nil {
+			t.Fatal(err)
+		}
+		if err := binary.Write(&buf, binary.LittleEndian, length); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := buf.WriteString(payload); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, buf.Bytes(), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// The header claims 8 version bytes and only 2 are present.
+	short := filepath.Join(dir, "short")
+	write(short, 8, "1.")
+	actual, err := Check(&CheckParams{
+		Product:    "test",
+		Version:    "1.0",
+		CacheFile:  short,
+		HTTPClient: mockClient,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if actual.CurrentVersion != "1.0.2" {
+		t.Fatalf("got %#v", actual)
+	}
+
+	// A length past the cap must not be allocated.
+	huge := filepath.Join(dir, "huge")
+	write(huge, maxCachedVersionLen+1, "")
+	_, err = Check(&CheckParams{
+		Product:    "test",
+		Version:    "1.0",
+		CacheFile:  huge,
+		HTTPClient: mockClient,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if hits != 2 {
+		t.Fatalf("hits: %d", hits)
 	}
 }
 

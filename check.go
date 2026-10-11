@@ -25,6 +25,9 @@ import (
 
 var magicBytes = [4]byte{0x35, 0x77, 0x69, 0xFB}
 
+// maxCachedVersionLen is the longest product version stored in a cache header.
+const maxCachedVersionLen = 4096
+
 // CheckParams are the parameters for configuring a check request.
 type CheckParams struct {
 	// Product and version are used to lookup the correct product and
@@ -269,8 +272,9 @@ func checkCache(current string, path string, d time.Duration) (io.ReadCloser, er
 	// Check the signature of the file
 	var sig [4]byte
 	if err := binary.Read(f, binary.LittleEndian, sig[:]); err != nil {
+		// A short header is a truncated cache. Refetch.
 		_ = f.Close()
-		return nil, err
+		return nil, nil
 	}
 	if !reflect.DeepEqual(sig, magicBytes) {
 		// Signatures don't match. Reset.
@@ -282,12 +286,32 @@ func checkCache(current string, path string, d time.Duration) (io.ReadCloser, er
 	var length uint32
 	if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
 		_ = f.Close()
+		return nil, nil
+	}
+	// The length comes from the file. A truncated or oversized value must not
+	// allocate, and must not fail the check. Refetch instead.
+	if length > maxCachedVersionLen {
+		_ = f.Close()
+		return nil, nil
+	}
+	fi, err = f.Stat()
+	if err != nil {
+		_ = f.Close()
 		return nil, err
+	}
+	off, err := f.Seek(0, io.SeekCurrent)
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if int64(length) > fi.Size()-off {
+		_ = f.Close()
+		return nil, nil
 	}
 	data := make([]byte, length)
 	if _, err := io.ReadFull(f, data); err != nil {
 		_ = f.Close()
-		return nil, err
+		return nil, nil
 	}
 	if string(data) != current {
 		// Version changed, reset
